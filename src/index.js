@@ -3,11 +3,28 @@
 
 //the better way to write the above code is -
 import dotenv from 'dotenv'
-import connectDB from "./db/index.js";
+import connectDB from "./db/index.js"
+import {app} from './app.js'
 
 dotenv.config({path : './env'})
 
+//since connectDB() is an async function, it will return a promise.
 connectDB()
+.then( ()=>{
+    //before starting the server we can also handle errors.
+    app.on("errors" , (error)=>{
+        console.log("ERROR : ", error)
+        throw error
+    })
+
+    app.listen(process.env.PORT || 8000 , () => {
+        console.log(`Server running on port ${process.env.PORT}`)
+    })
+
+} )
+.catch( (err)=>{
+    console.log("MONGO DB CONNECTION FAILED !" , err)
+} )
 
 
 
@@ -30,7 +47,7 @@ connectDB()
 // connectDB()
 //This approach is ok. But we will use iife.
 //Remember, while connecting or communicating to a database some errors may arise.
-//so we must cover the code in try catch bloc or promises
+//so we must cover the code in try catch block or promises
 //And, Database connection and communication may take time.
 //So we need to  tackle this using async await
 
@@ -38,6 +55,7 @@ connectDB()
 //APPROACH 1 to connect database
 
 import express from 'express'
+import mongoose from 'mongoose'
 const app = express()
 ;( async ()=>{
     try {
