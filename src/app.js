@@ -30,4 +30,14 @@ app.use(cookieParser())
 //this helps to add and remove the secured cookies on the user browser 
 
 
+
+//Import Routes
+import userRoute from './routes/user.routes.js'
+
+//declaring routes
+app.use("/api/v1/users" , userRoute)
+
+
+//eg url - http://localhost:8000/api/v1/users/register
+
 export { app }
