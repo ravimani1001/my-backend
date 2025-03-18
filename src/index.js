@@ -6,7 +6,7 @@ import dotenv from 'dotenv'
 import connectDB from "./db/index.js"
 import {app} from './app.js'
 
-dotenv.config({path : './env'})
+dotenv.config({path : './.env'})
 
 //since connectDB() is an async function, it will return a promise.
 connectDB()
