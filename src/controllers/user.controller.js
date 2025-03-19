@@ -5,6 +5,23 @@ import { User } from "../models/user.model.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 
 
+const generateAccessAndRefreshToken = async (userId) => {
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave : false })
+
+        return {accessToken , refreshToken}
+
+    } catch (error) {
+        throw new ApiError(500 , "Something went wrong while generating access and refresh token")
+    }
+}
+
+//Register controller
 const registerUser = asyncHandler( async (req , res) => {
     
     // get user details from frontend
@@ -83,6 +100,99 @@ const registerUser = asyncHandler( async (req , res) => {
         new ApiResponse(200 , createdUser , "User registered successfully")
     )
 
+} )//register controller created
+
+
+//login controller
+const loginUser = asyncHandler( async (req , res) => {
+    // get data from the user from req.body - email/username and password
+    // Validate if fields are empty
+    // Find user with the given email - Also check if user exists or not
+    // compare password
+    // generate access and refresh tokens
+    // save tokens to database
+    // send cookies
+
+    const {email , username , password} = req.body
+
+    if(!username || !email){
+        throw new ApiError(400 , "Email or username is required")
+    }
+
+    const user = await User.findOne({
+        $or : [{email} , {username}]
+    })
+    if(!user){
+        throw new ApiError(404 , "User does not exist")
+    }
+
+    //checking password
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    if(!isPasswordValid){
+        throw new ApiError(401 , "Invalid user credentials")
+    }
+
+    // Generating access and refresh token
+    const {accessToken , refreshToken} = await generateAccessAndRefreshToken(user._id)
+
+    // We have to send cookies. We dont want to send information like password and refreshtoken
+    // So we have to get the updated/loggedIn user
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    //To send cookies we need to define some parameters. Here we created an object - options
+    // By default, the cookies can  be modified from the frontend.
+    // by setting httpOnly = true and secure = true, the cookies can only be modified from the backend/server
+    const options = {
+        httpOnly : true,
+        secure : true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken" , accessToken , options)
+    .cookie("refreshToken" , refreshToken , options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user : loggedInUser,
+                accessToken,
+                refreshToken
+            },
+            "User logged in succesfully"
+        )
+    )
+
 } )
 
-export {registerUser}
+//logout controller
+const logoutUser = asyncHandler( async (req , res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set : {
+                refreshToken : undefined
+            }
+        },
+        {
+            new : true
+        }
+    )
+
+    const options = {
+        httpOnly : true,
+        secure : true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken" , options)
+    .json(new ApiResponse(200 , {} , "User logged out"))
+} )
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser
+}
